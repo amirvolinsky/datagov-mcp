@@ -1,4 +1,4 @@
-fastapi
-uvicorn
 fastmcp
+fastapi
 requests
+uvicorn
