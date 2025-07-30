@@ -50,7 +50,7 @@ def fetch_data(dataset_name: str, limit: int = 100, offset: int = 0):
         raise Exception(api_data.get("error", "Unknown error occurred"))
 
 # Expose as FastAPI app
-app: FastAPI = mcp.get_app()
+app = mcp.http_app
 
 # Uvicorn launch (only when run directly)
 if __name__ == "__main__":
