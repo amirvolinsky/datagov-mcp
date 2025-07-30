@@ -1,35 +1,44 @@
-from fastmcp import FastMCP, Context
-from fastapi import Request
-from fastapi.responses import JSONResponse
-import requests
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+from mcp import get_data
+from typing import Optional
 
-mcp = FastMCP("DataGovIL", dependencies=["requests"])
-app = mcp.http_app  # ✅ אין סוגריים!
+def create_app():
+    app = FastAPI()
 
-BASE_URL = "https://data.gov.il/api/3"
+    # אפשר להתאים את הדומיינים אם צריך
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-@mcp.tool()
-async def fetch_data(ctx: Context, dataset_name: str, limit: int = 100):
-    r = requests.get(f"{BASE_URL}/action/package_show?id={dataset_name}")
-    r.raise_for_status()
-    result = r.json()["result"]
-    resource_id = result["resources"][0]["id"]
+    @app.get("/fetch_data")
+    async def fetch_data(
+        source: Optional[str] = Query(None),
+        filters: Optional[str] = Query(None),
+        dimensions: Optional[str] = Query(None),
+        metrics: Optional[str] = Query(None),
+        group_by: Optional[str] = Query(None),
+        order_by: Optional[str] = Query(None),
+        limit: Optional[int] = Query(None)
+    ):
+        try:
+            data = get_data(
+                source=source,
+                filters=filters,
+                dimensions=dimensions,
+                metrics=metrics,
+                group_by=group_by,
+                order_by=order_by,
+                limit=limit
+            )
+            return {"status": "success", "data": data}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-    data_r = requests.get(f"{BASE_URL}/action/datastore_search", params={
-        "resource_id": resource_id,
-        "limit": limit
-    })
-    data_r.raise_for_status()
-    return data_r.json()["result"]["records"]
+    return app
 
-@app.get("/fetch_data")
-async def fetch_data_http(request: Request):
-    dataset_name = request.query_params.get("dataset_name")
-    if not dataset_name:
-        return JSONResponse({'error': 'dataset_name is required'}, status_code=400)
-    try:
-        ctx = Context("http")
-        result = await fetch_data(ctx, dataset_name)
-        return JSONResponse(result)
-    except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
+app = create_app()
