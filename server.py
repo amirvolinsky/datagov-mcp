@@ -1,11 +1,11 @@
-# server.py
 from fastmcp import FastMCP, Context
-from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi import Request
 import requests
 
-# יצירת שרת MCP
 mcp = FastMCP("DataGovIL", dependencies=["requests"])
+app = mcp.http_app  # ✅ Correct FastAPI reference
+
 BASE_URL = "https://data.gov.il/api/3"
 
 @mcp.tool()
@@ -30,10 +30,17 @@ async def package_list(ctx: Context):
     return response.json()
 
 @mcp.tool()
-async def package_search(ctx: Context, q: str = "", fq: str = "", sort: str = "", rows: int = 20, start: int = 0, include_private: bool = False):
+async def package_search(ctx: Context, q: str = "", fq: str = "",
+                         sort: str = "", rows: int = 20, start: int = 0,
+                         include_private: bool = False):
     await ctx.info("Searching for packages...")
     params = {
-        "q": q, "fq": fq, "sort": sort, "rows": rows, "start": start, "include_private": include_private
+        "q": q,
+        "fq": fq,
+        "sort": sort,
+        "rows": rows,
+        "start": start,
+        "include_private": include_private
     }
     response = requests.get(f"{BASE_URL}/action/package_search", params=params)
     response.raise_for_status()
@@ -42,7 +49,8 @@ async def package_search(ctx: Context, q: str = "", fq: str = "", sort: str = ""
 @mcp.tool()
 async def package_show(ctx: Context, id: str):
     await ctx.info(f"Fetching metadata for package: {id}")
-    response = requests.get(f"{BASE_URL}/action/package_show", params={"id": id})
+    params = {"id": id}
+    response = requests.get(f"{BASE_URL}/action/package_show", params=params)
     response.raise_for_status()
     return response.json()
 
@@ -56,20 +64,31 @@ async def organization_list(ctx: Context):
 @mcp.tool()
 async def organization_show(ctx: Context, id: str):
     await ctx.info(f"Fetching details for organization: {id}")
-    response = requests.get(f"{BASE_URL}/action/organization_show", params={"id": id})
+    params = {"id": id}
+    response = requests.get(f"{BASE_URL}/action/organization_show", params=params)
     response.raise_for_status()
     return response.json()
 
 @mcp.tool()
-async def resource_search(ctx: Context, query: str = "", order_by: str = "", offset: int = 0, limit: int = 100):
+async def resource_search(ctx: Context, query: str = "", order_by: str = "",
+                          offset: int = 0, limit: int = 100):
     await ctx.info("Searching for resources...")
-    params = {"query": query, "order_by": order_by, "offset": offset, "limit": limit}
+    params = {
+        "query": query,
+        "order_by": order_by,
+        "offset": offset,
+        "limit": limit
+    }
     response = requests.get(f"{BASE_URL}/action/resource_search", params=params)
     response.raise_for_status()
     return response.json()
 
 @mcp.tool()
-async def datastore_search(ctx: Context, resource_id: str, q: str = "", distinct: bool = False, plain: bool = True, limit: int = 100, offset: int = 0, fields: str = "", sort: str = "", include_total: bool = True, records_format: str = "objects"):
+async def datastore_search(ctx: Context, resource_id: str, q: str = "",
+                           distinct: bool = False, plain: bool = True,
+                           limit: int = 100, offset: int = 0, fields: str = "",
+                           sort: str = "", include_total: bool = True,
+                           records_format: str = "objects"):
     await ctx.info(f"Searching datastore for resource: {resource_id}")
     params = {
         "resource_id": resource_id,
@@ -87,7 +106,6 @@ async def datastore_search(ctx: Context, resource_id: str, q: str = "", distinct
     response.raise_for_status()
     return response.json()
 
-# כלי fetch_data
 @mcp.tool()
 def fetch_data(dataset_name: str, limit: int = 100, offset: int = 0):
     def find_resource_id(dataset_name):
@@ -119,10 +137,7 @@ def fetch_data(dataset_name: str, limit: int = 100, offset: int = 0):
     else:
         raise Exception(api_data.get("error", "Unknown error occurred"))
 
-# יצירת אפליקציית FastAPI
-app = mcp.http_app
-
-# הוספת route ישיר
+# Expose the fetch_data tool via HTTP
 @app.get("/fetch_data")
 async def fetch_data_http(request: Request):
     dataset_name = request.query_params.get("dataset_name")
@@ -138,7 +153,6 @@ async def fetch_data_http(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# הרצה לוקאלית או בענן
+# Run the server
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    mcp.run()
