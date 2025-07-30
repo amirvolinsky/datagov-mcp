@@ -1,4 +1,5 @@
 fastapi
 uvicorn
 requests
-fastmcp
+git+https://github.com/datagov-il/MCP.git
+git+https://github.com/datagov-il/fastmcp.git
