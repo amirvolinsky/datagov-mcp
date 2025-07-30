@@ -3,16 +3,15 @@ from fastapi.responses import JSONResponse
 from fastmcp import FastMCP, Context
 import requests
 
-# MCP instance (לא משתמשים בו כ־app ישירות!)
+# MCP instance — לשימוש פנימי בלבד
 mcp = FastMCP("DataGovIL", dependencies=["requests"])
 
-# FastAPI app משלך
+# זהו FastAPI app אמיתי, לא הפונקציה של MCP!
 app = FastAPI()
 
-# MCP tools
+# MCP Tool — רק לשימוש על ידי MCP
 @mcp.tool()
 async def fetch_data_tool(ctx: Context, dataset_name: str, limit: int = 100):
-    """Tool for MCP"""
     r = requests.get(f"https://data.gov.il/api/3/action/package_show?id={dataset_name}")
     r.raise_for_status()
     result = r.json()["result"]
@@ -24,7 +23,7 @@ async def fetch_data_tool(ctx: Context, dataset_name: str, limit: int = 100):
     data_r.raise_for_status()
     return data_r.json()["result"]["records"]
 
-# API route רגיל לחלוטין
+# HTTP route — לפנייה מה-UI או מבחוץ
 @app.get("/fetch_data")
 async def fetch_data_http(request: Request):
     dataset_name = request.query_params.get("dataset_name")
