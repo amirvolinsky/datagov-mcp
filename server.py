@@ -1,15 +1,15 @@
-# server.py
 from fastmcp import FastMCP, Context
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import requests
 
-# יצירת MCP
+# MCP setup
 mcp = FastMCP("DataGovIL", dependencies=["requests"])
-app = mcp.http_app  # אל תשתמש בסוגריים!!!
+app = mcp.http_app  # ✅ שים לב – אין סוגריים!
 
 BASE_URL = "https://data.gov.il/api/3"
 
+# MCP tool – usable inside LLM
 @mcp.tool()
 async def fetch_data(ctx: Context, dataset_name: str, limit: int = 100):
     """Fetch dataset by name from data.gov.il"""
@@ -25,13 +25,15 @@ async def fetch_data(ctx: Context, dataset_name: str, limit: int = 100):
     data_r.raise_for_status()
     return data_r.json()["result"]["records"]
 
+# HTTP route – usable via URL
 @app.get("/fetch_data")
 async def fetch_data_http(request: Request):
     dataset_name = request.query_params.get("dataset_name")
     if not dataset_name:
-        return JSONResponse({"error": "dataset_name missing"}, status_code=400)
-    ctx = Context("http")
-    return await fetch_data(ctx, dataset_name)
-
-if __name__ == "__main__":
-    mcp.run()
+        return JSONResponse({'error': 'dataset_name is required'}, status_code=400)
+    try:
+        ctx = Context("http")
+        result = await fetch_data(ctx, dataset_name)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
