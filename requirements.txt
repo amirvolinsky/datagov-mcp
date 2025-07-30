@@ -1,3 +1,4 @@
-fastmcp
 fastapi
+fastmcp
+uvicorn
 requests
